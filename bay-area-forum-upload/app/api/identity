@@ -1,0 +1,100 @@
+import { NextResponse } from 'next/server';
+
+function clean(value) {
+  if (!value) return '';
+
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function maskIp(ip) {
+  if (!ip) return '';
+
+  // IPv4
+  if (ip.includes('.')) {
+    const parts = ip.split('.');
+
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.*.*`;
+    }
+  }
+
+  // IPv6
+  if (ip.includes(':')) {
+    const parts = ip.split(':').filter(Boolean);
+    return `${parts.slice(0, 2).join(':')}:****:****`;
+  }
+
+  return '';
+}
+
+const locationMap = {
+  Beijing: '北京',
+  Shanghai: '上海',
+  Chongqing: '重庆',
+  Tianjin: '天津',
+  Guangzhou: '广州',
+  Shenzhen: '深圳',
+  Chengdu: '成都',
+  Hangzhou: '杭州',
+  Wuhan: '武汉',
+  Nanjing: '南京',
+  Suzhou: '苏州',
+  Xiamen: '厦门',
+  Fuzhou: '福州',
+  Qingdao: '青岛',
+  XiAn: '西安',
+  "Xi'an": '西安',
+  Changsha: '长沙',
+  Zhengzhou: '郑州',
+  Shenyang: '沈阳',
+  Dalian: '大连',
+  Kunming: '昆明',
+  Hefei: '合肥',
+  Jinan: '济南',
+  Ningbo: '宁波',
+
+  California: '加州',
+  'New York': '纽约州',
+  Texas: '德州',
+  Washington: '华盛顿州',
+  Florida: '佛罗里达',
+};
+
+export async function GET(request) {
+  const forwarded = request.headers.get('x-forwarded-for');
+
+  const ip =
+    forwarded?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    '';
+
+  const rawCity = clean(
+    request.headers.get('x-vercel-ip-city')
+  );
+
+  const rawRegion = clean(
+    request.headers.get('x-vercel-ip-country-region')
+  );
+
+  const country =
+    clean(request.headers.get('x-vercel-ip-country')) || '';
+
+  const city =
+    locationMap[rawCity] ||
+    rawCity;
+
+  const region =
+    locationMap[rawRegion] ||
+    rawRegion;
+
+  let place = city || region || country || '某个地方';
+
+  return NextResponse.json({
+    place,
+    maskedIp: maskIp(ip),
+  });
+}
